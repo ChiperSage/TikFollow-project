@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TikFollow</string>
+    <string name="service_desc">Klik Follow dan scroll otomatis di TikTok</string>
+</resources>
