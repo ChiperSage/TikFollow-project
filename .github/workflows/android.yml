@@ -14,7 +14,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Siapkan Android SDK (bawaan runner)
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          SDKM=$(ls $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | head -n1)
+          yes | $SDKM --sdk_root=$ANDROID_HOME --licenses > /dev/null || true
+          $SDKM --sdk_root=$ANDROID_HOME "platforms;android-34" "build-tools;34.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
