@@ -9,6 +9,7 @@ import android.util.DisplayMetrics;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -16,6 +17,9 @@ public class FollowService extends AccessibilityService {
     public static volatile FollowService instance;
 
     private static final int MAX_PER_SESSION = 100;
+    private static final List<String> LABELS = Arrays.asList(
+        "follow", "ikuti", "follow back", "ikuti balik");
+
     private final Handler h = new Handler(Looper.getMainLooper());
     private final Random rnd = new Random();
     private boolean running = false;
@@ -26,8 +30,11 @@ public class FollowService extends AccessibilityService {
             if (!running) return;
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root != null) {
-                if (clickFollow(root)) count++;
-                if (!scrollNode(root)) swipeUp();
+                if (clickFollow(root)) {
+                    count++;          // masih ada tombol Follow: klik satu, jangan scroll dulu
+                } else {
+                    swipeUp();        // tidak ada lagi di layar: scroll ke halaman berikutnya
+                }
             }
             if (count >= MAX_PER_SESSION) { stopLoop(); return; }
             h.postDelayed(this, 15000 + rnd.nextInt(3000)); // 15-18 detik
@@ -53,14 +60,14 @@ public class FollowService extends AccessibilityService {
     }
 
     private boolean clickFollow(AccessibilityNodeInfo root) {
-        for (String label : new String[]{"Follow", "Ikuti"}) {
-            List<AccessibilityNodeInfo> list = root.findAccessibilityNodeInfosByText(label);
+        for (String q : new String[]{"Follow", "Ikuti"}) {
+            List<AccessibilityNodeInfo> list = root.findAccessibilityNodeInfosByText(q);
             if (list == null) continue;
             for (AccessibilityNodeInfo n : list) {
                 CharSequence t = n.getText();
                 CharSequence d = n.getContentDescription();
-                String s = t != null ? t.toString() : (d != null ? d.toString() : "");
-                if (!s.equalsIgnoreCase(label)) continue; // lewati "Following"/"Mengikuti"
+                String s = (t != null ? t.toString() : (d != null ? d.toString() : "")).trim().toLowerCase();
+                if (!LABELS.contains(s)) continue; // lewati "Following", "Friends", dll.
                 AccessibilityNodeInfo c = n;
                 while (c != null && !c.isClickable()) c = c.getParent();
                 if (c != null && c.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
@@ -69,23 +76,14 @@ public class FollowService extends AccessibilityService {
         return false;
     }
 
-    private boolean scrollNode(AccessibilityNodeInfo n) {
-        if (n == null) return false;
-        if (n.isScrollable() && n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true;
-        for (int i = 0; i < n.getChildCount(); i++) {
-            if (scrollNode(n.getChild(i))) return true;
-        }
-        return false;
-    }
-
     private void swipeUp() {
         DisplayMetrics m = getResources().getDisplayMetrics();
         float x = m.widthPixels / 2f;
         Path p = new Path();
-        p.moveTo(x, m.heightPixels * 0.75f);
-        p.lineTo(x, m.heightPixels * 0.35f);
+        p.moveTo(x, m.heightPixels * 0.80f);
+        p.lineTo(x, m.heightPixels * 0.30f);
         GestureDescription g = new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, 400)).build();
+            .addStroke(new GestureDescription.StrokeDescription(p, 0, 450)).build();
         dispatchGesture(g, null, null);
     }
 
