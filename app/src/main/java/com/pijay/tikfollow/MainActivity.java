@@ -7,6 +7,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,14 +20,46 @@ public class MainActivity extends Activity {
         @Override public void run() { refresh(); ui.postDelayed(this, 1000); }
     };
 
+    private Button mk(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        return b;
+    }
+
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
-        setContentView(R.layout.activity_main);
-        status = findViewById(R.id.status);
-        toggle = findViewById(R.id.btnToggle);
-        modeBtn = findViewById(R.id.btnMode);
 
-        findViewById(R.id.btnEnable).setOnClickListener(v ->
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        root.setPadding(pad, pad, pad, pad);
+
+        status = new TextView(this);
+        status.setTextSize(16);
+        status.setPadding(0, 0, 0, pad / 2);
+        root.addView(status);
+
+        Button btnEnable = mk("Aktifkan service (Accessibility)");
+        modeBtn = mk("Mode: Follow");
+        toggle = mk("Start");
+        Button btnOpen = mk("Buka TikTok");
+        root.addView(btnEnable);
+        root.addView(modeBtn);
+        root.addView(toggle);
+        root.addView(btnOpen);
+
+        TextView info = new TextView(this);
+        info.setPadding(0, pad / 2, 0, 0);
+        info.setText("Mode Follow: buka halaman Suggested / Activity, lalu Start. "
+            + "Bot follow 1-10 akun (jeda 5 dtk), istirahat 1-15 menit, lalu ulang. "
+            + "Mode Like + Scroll: buka feed For You, lalu Start.");
+        root.addView(info);
+
+        ScrollView sv = new ScrollView(this);
+        sv.addView(root);
+        setContentView(sv);
+
+        btnEnable.setOnClickListener(v ->
             startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
 
         modeBtn.setOnClickListener(v -> {
@@ -47,7 +81,7 @@ public class MainActivity extends Activity {
             refresh();
         });
 
-        findViewById(R.id.btnOpen).setOnClickListener(v -> {
+        btnOpen.setOnClickListener(v -> {
             Intent i = getPackageManager().getLaunchIntentForPackage("com.zhiliaoapp.musically");
             if (i == null) i = getPackageManager().getLaunchIntentForPackage("com.ss.android.ugc.trill");
             if (i != null) startActivity(i);
