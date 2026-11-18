@@ -21,15 +21,8 @@ public class FollowService extends AccessibilityService {
     public static final int MODE_FOLLOW = 0;
     public static final int MODE_LIKE = 1;
 
-    private static final int MAX_PER_SESSION = Integer.MAX_VALUE;
     private static final int MAX_FAIL_STREAK = 3;
     private static final int MAX_EMPTY_SCROLLS = 5;
-
-    // Jadwal mode Follow
-    private static final int MAX_BATCH = 10;        // 1..10 akun per batch
-    private static final int REST_MIN_S = 60;       // istirahat 1 menit
-    private static final int REST_MAX_S = 900;      // sampai 15 menit
-    private static final int STEP_MS = 5000;        // jeda antar follow 5 detik
 
     private static final String[] QUERIES = {"Follow", "Ikuti"};
     private static final List<String> LABELS = Arrays.asList(
@@ -45,6 +38,7 @@ public class FollowService extends AccessibilityService {
 
     private final Handler h = new Handler(Looper.getMainLooper());
     private final Random rnd = new Random();
+    private Prefs cfg = new Prefs();
     private boolean running = false;
     private int mode = MODE_FOLLOW;
     private int count = 0;
@@ -58,12 +52,16 @@ public class FollowService extends AccessibilityService {
     private Rect lastBounds = null;
     private String stopReason = "";
 
+    private boolean limitReached() {
+        return cfg.maxTotal > 0 && count >= cfg.maxTotal;
+    }
+
     // ===== MODE FOLLOW (batch + istirahat) =====
     private final Runnable startBatch = new Runnable() {
         @Override public void run() {
             if (!running) return;
             resting = false;
-            batchTarget = 1 + rnd.nextInt(MAX_BATCH);
+            batchTarget = cfg.batchMin + rnd.nextInt(cfg.batchMax - cfg.batchMin + 1);
             batchDone = 0;
             emptyStreak = 0;
             h.post(step);
@@ -73,8 +71,9 @@ public class FollowService extends AccessibilityService {
     private final Runnable step = new Runnable() {
         @Override public void run() {
             if (!running) return;
+            long stepMs = cfg.stepSec * 1000L;
             AccessibilityNodeInfo root = getRootInActiveWindow();
-            if (root == null || !isTikTok(root)) { h.postDelayed(this, STEP_MS); return; }
+            if (root == null || !isTikTok(root)) { h.postDelayed(this, stepMs); return; }
             if (hasWarning(root)) { stopWith("Peringatan TikTok terdeteksi"); return; }
 
             Rect clicked = clickFollow(root);
@@ -93,12 +92,12 @@ public class FollowService extends AccessibilityService {
             }
 
             if (batchDone >= batchTarget) scheduleRest();
-            else h.postDelayed(this, STEP_MS);
+            else h.postDelayed(this, stepMs);
         }
     };
 
     private void scheduleRest() {
-        long sec = REST_MIN_S + rnd.nextInt(REST_MAX_S - REST_MIN_S + 1);
+        long sec = cfg.restMinSec + rnd.nextInt(cfg.restMaxSec - cfg.restMinSec + 1);
         resting = true;
         restEndAt = System.currentTimeMillis() + sec * 1000L;
         h.postDelayed(startBatch, sec * 1000L);
@@ -118,7 +117,7 @@ public class FollowService extends AccessibilityService {
             } else {
                 failStreak = 0;
                 count++;
-                if (count >= MAX_PER_SESSION) stopWith("Batas jumlah tercapai");
+                if (limitReached()) stopWith("Batas jumlah tercapai");
             }
         }
     };
@@ -141,10 +140,12 @@ public class FollowService extends AccessibilityService {
                 }
                 doubleTapCenter();
                 count++;
-                if (count >= MAX_PER_SESSION) { stopWith("Batas jumlah tercapai"); return; }
+                if (limitReached()) { stopWith("Batas jumlah tercapai"); return; }
                 h.postDelayed(swipeNext, 1200);
             }
-            h.postDelayed(this, 6000 + rnd.nextInt(6000)); // 6-12 detik
+            long ms = cfg.likeMinSec * 1000L
+                + rnd.nextInt((cfg.likeMaxSec - cfg.likeMinSec) * 1000 + 1);
+            h.postDelayed(this, ms);
         }
     };
 
@@ -168,6 +169,7 @@ public class FollowService extends AccessibilityService {
 
     public void startLoop() {
         if (running) return;
+        cfg = Prefs.load(getApplicationContext());
         running = true;
         count = 0;
         failStreak = 0;
