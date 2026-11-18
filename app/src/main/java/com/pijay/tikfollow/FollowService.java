@@ -155,6 +155,32 @@ public class FollowService extends AccessibilityService {
         }
     };
 
+    private View keepAwakeView;
+
+    private void keepScreenOn(boolean on) {
+        try {
+            WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+            if (on && keepAwakeView == null) {
+                View v = new View(this);
+                WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                    1, 1,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                    PixelFormat.TRANSLUCENT);
+                lp.gravity = Gravity.TOP | Gravity.START;
+                wm.addView(v, lp);
+                keepAwakeView = v;
+            } else if (!on && keepAwakeView != null) {
+                wm.removeView(keepAwakeView);
+                keepAwakeView = null;
+            }
+        } catch (Exception e) {
+            keepAwakeView = null;
+        }
+    }
+    
     @Override protected void onServiceConnected() { instance = this; }
     @Override public boolean onUnbind(android.content.Intent i) { stopLoop(); instance = null; return super.onUnbind(i); }
 
