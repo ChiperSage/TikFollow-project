@@ -203,6 +203,7 @@ public class FollowService extends AccessibilityService {
         if (running) return;
         cfg = Prefs.load(getApplicationContext());
         running = true;
+        keepScreenOn(true);
         count = 0;
         failStreak = 0;
         warnHits = 0;
@@ -218,6 +219,7 @@ public class FollowService extends AccessibilityService {
     public void stopLoop() {
         running = false;
         resting = false;
+        keepScreenOn(false);
         h.removeCallbacks(startBatch);
         h.removeCallbacks(step);
         h.removeCallbacks(checkAfterClick);
